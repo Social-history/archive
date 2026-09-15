@@ -1,2 +1,1 @@
-# -
-통합사회, 한국사, 세계사 수업 연구소
+social-history archive
