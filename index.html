@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>무지의 베일 사고실험</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- QR코드 라이브러리 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .card-flip { perspective: 1000px; }
+    .card-inner { transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
+    .card-flipped { transform: rotateY(180deg); }
+    .card-front, .card-back { backface-visibility: hidden; }
+    .card-back { transform: rotateY(180deg); }
+    button { touch-action: manipulation; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans select-none">
+
+  <!-- 헤더 -->
+  <header class="bg-slate-900 text-white p-3.5 shadow-md flex justify-between items-center px-4 sticky top-0 z-50">
+    <div class="flex items-center space-x-2">
+      <i class="fa-solid fa-scale-balanced text-indigo-400 text-lg"></i>
+      <h1 class="text-base font-bold tracking-tight">무지의 베일 <span id="header-class-badge" class="ml-1 px-2 py-0.5 text-xs bg-indigo-600 rounded-full">1반</span></h1>
+    </div>
+    <div class="flex space-x-1.5">
+      <button onclick="switchView('student')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-xs rounded font-medium">학생 모드</button>
+      <button onclick="switchView('admin')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-xs rounded font-medium">교사용 대시보드</button>
+    </div>
+  </header>
+
+  <!-- 메인 -->
+  <main class="flex-1 max-w-xl md:max-w-4xl w-full mx-auto p-3 md:p-6 pb-12">
+
+    <!-- ================= [1. 학생 화면] ================= -->
+    <div id="student-view" class="space-y-4">
+
+      <!-- 1단계: 로그인 -->
+      <section id="step-login" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="text-center mb-5">
+          <div class="inline-flex p-3 bg-indigo-50 text-indigo-600 rounded-full mb-2">
+            <i class="fa-solid fa-masks-theater text-2xl"></i>
+          </div>
+          <h2 class="text-lg font-bold text-slate-900">무지의 방 입장</h2>
+          <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+            어머니의 빚 6,000만 원 분배 합의안을 만듭니다.<br>당신은 4남매 중 한 명이지만, 지금은 자신이 누구인지 알 수 없습니다.
+          </p>
+        </div>
+
+        <div class="space-y-3 mb-5">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">학번</label>
+              <input id="stu-id" type="number" placeholder="예: 105" class="w-full p-2.5 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">이름</label>
+              <input id="stu-name" type="text" placeholder="홍길동" class="w-full p-2.5 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">소속 모둠</label>
+            <select id="stu-group" class="w-full p-2.5 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="1">1 모둠</option><option value="2">2 모둠</option>
+              <option value="3">3 모둠</option><option value="4">4 모둠</option>
+              <option value="5">5 모둠</option><option value="6">6 모둠</option>
+              <option value="7">7 모둠</option><option value="8">8 모둠</option>
+            </select>
+          </div>
+        </div>
+
+        <button onclick="startExperiment()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition text-sm">
+          베일을 쓰고 토의 시작하기
+        </button>
+      </section>
+
+      <!-- 2단계: 모둠 토의 -->
+      <section id="step-debate" class="hidden space-y-3">
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 sticky top-14 z-40">
+          <div class="flex justify-between items-center text-xs mb-1.5 font-bold">
+            <span>목표: 6,000만 원</span>
+            <span id="sum-display" class="text-red-500">합계: 0만 원</span>
+          </div>
+          <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+            <div id="sum-bar" class="h-full bg-red-500 transition-all duration-200" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- 4남매 카드 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- 카드 1: 김영희 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-start mb-1">
+              <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">장녀 (48세)</span>
+              <span class="text-xs font-bold text-indigo-600">연 1억 원</span>
+            </div>
+            <h3 class="text-sm font-bold text-slate-900">김영희 <span class="text-xs font-normal text-slate-500">(의사 / 독신)</span></h3>
+            <p class="text-[11px] text-slate-500 mb-3">현금이 여러 자산에 묶여 있어 당장 가용 현금 부족</p>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700"><span id="val-1" class="text-base text-indigo-600">1,500</span>만 원</span>
+              <div class="flex space-x-1">
+                <button onclick="adjustValue(1, -50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 text-sm shadow-sm">-50</button>
+                <button onclick="adjustValue(1, +50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-indigo-600 text-sm shadow-sm">+50</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 카드 2: 김철수 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-start mb-1">
+              <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">장남 (45세)</span>
+              <span class="text-xs font-bold text-indigo-600">연 4천만 원</span>
+            </div>
+            <h3 class="text-sm font-bold text-slate-900">김철수 <span class="text-xs font-normal text-slate-500">(중소기업 과장)</span></h3>
+            <p class="text-[11px] text-slate-500 mb-3">전업주부 아내, 자녀 2명 부양. 다음 달 전세금 인상</p>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700"><span id="val-2" class="text-base text-indigo-600">1,500</span>만 원</span>
+              <div class="flex space-x-1">
+                <button onclick="adjustValue(2, -50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 text-sm shadow-sm">-50</button>
+                <button onclick="adjustValue(2, +50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-indigo-600 text-sm shadow-sm">+50</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 카드 3: 김영수 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-start mb-1">
+              <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">차남 (40세)</span>
+              <span class="text-xs font-bold text-indigo-600">연 8천만 원 (맞벌이)</span>
+            </div>
+            <h3 class="text-sm font-bold text-slate-900">김영수 <span class="text-xs font-normal text-slate-500">(공무원)</span></h3>
+            <p class="text-[11px] text-slate-500 mb-3">초등교사 아내, 자녀 2명. 내년 자녀 해외 유학 예정</p>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700"><span id="val-3" class="text-base text-indigo-600">1,500</span>만 원</span>
+              <div class="flex space-x-1">
+                <button onclick="adjustValue(3, -50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 text-sm shadow-sm">-50</button>
+                <button onclick="adjustValue(3, +50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-indigo-600 text-sm shadow-sm">+50</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 카드 4: 김남희 -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex justify-between items-start mb-1">
+              <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">막내 (35세)</span>
+              <span class="text-xs font-bold text-emerald-600">연 2천만 원</span>
+            </div>
+            <h3 class="text-sm font-bold text-slate-900">김남희 <span class="text-xs font-normal text-slate-500">(계약직 판매원)</span></h3>
+            <p class="text-[11px] text-slate-500 mb-3">초등생 자녀 1명 부양. 남편 실직 상태 (최소 수혜자)</p>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700"><span id="val-4" class="text-base text-indigo-600">1,500</span>만 원</span>
+              <div class="flex space-x-1">
+                <button onclick="adjustValue(4, -50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-slate-700 text-sm shadow-sm">-50</button>
+                <button onclick="adjustValue(4, +50)" class="w-9 h-9 bg-white border border-slate-300 rounded-lg font-bold text-indigo-600 text-sm shadow-sm">+50</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button id="submit-plan-btn" onclick="openRevealModal()" class="w-full py-3 bg-slate-400 text-white font-bold rounded-xl shadow text-sm transition cursor-not-allowed" disabled>
+          우리 모둠 최종 합의안 제출하기
+        </button>
+      </section>
+
+      <!-- 3단계: 베일 벗기 -->
+      <section id="step-reflection" class="hidden space-y-4">
+        <div class="card-flip w-full h-44 cursor-pointer" onclick="flipCard()">
+          <div id="flip-inner" class="card-inner relative w-full h-full rounded-2xl shadow-sm">
+            <div class="card-front absolute w-full h-full bg-slate-800 text-white rounded-2xl flex flex-col justify-center items-center p-4 text-center border-2 border-dashed border-indigo-400">
+              <i class="fa-solid fa-hand-pointer text-2xl text-indigo-400 mb-2 animate-bounce"></i>
+              <h3 class="text-base font-bold">카드를 터치하여 베일을 벗으세요</h3>
+              <p class="text-[11px] text-slate-400 mt-1">부여받았던 당신의 실제 정체가 공개됩니다.</p>
+            </div>
+            <div id="reveal-card-back" class="card-back absolute w-full h-full bg-indigo-900 text-white rounded-2xl flex flex-col justify-center items-center p-4 text-center">
+              <span class="text-[10px] text-indigo-300 font-bold">나의 정체</span>
+              <h3 id="revealed-name" class="text-xl font-extrabold text-yellow-400 my-0.5">김남희 (막내)</h3>
+              <p id="revealed-desc" class="text-[11px] text-slate-300">연 소득 2,000만 원 / 남편 실직 상태</p>
+              <div class="mt-2 text-xs bg-indigo-800/90 px-3 py-1.5 rounded-lg border border-indigo-600">
+                모둠이 나에게 배정한 빚: <span id="my-assigned-debt" class="font-bold text-emerald-400 text-sm">0</span>만 원
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="font-bold text-slate-800 text-sm">사고실험 성찰 안내</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            자신의 실제 처지와 모둠의 분배 결정을 비교해 보세요. 상세한 성찰 서술 문항은 <strong>Google 클래스룸 과제</strong> 탭에 작성해 주세요.
+          </p>
+          <button onclick="location.reload()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+            처음 화면으로 돌아가기
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= [2. 교사용 대시보드] ================= -->
+    <div id="admin-view" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold text-slate-800">모둠별 분배 현황</h2>
+            <!-- 1반부터 8반까지 선택 지원 -->
+            <select id="class-selector" onchange="changeClass(this.value)" class="text-xs border rounded px-2 py-1 bg-slate-50 font-bold text-indigo-600">
+              <option value="1">1반</option><option value="2">2반</option>
+              <option value="3">3반</option><option value="4">4반</option>
+              <option value="5">5반</option><option value="6">6반</option>
+              <option value="7">7반</option><option value="8">8반</option>
+            </select>
+          </div>
+          
+          <!-- 웹 호스팅 기본 주소 입력 설정창 (로컬 경로 문제 해결) -->
+          <div class="mt-2 text-xs">
+            <label class="text-slate-500 font-medium mr-1">웹 서비스 주소(URL):</label>
+            <input id="base-url-input" type="text" placeholder="https://내웹주소.com 또는 http://192.168.x.x" 
+              class="border rounded px-2 py-0.5 text-xs text-slate-700 w-52 md:w-64 outline-none focus:ring-1 focus:ring-indigo-500">
+            <button onclick="updateBaseUrl()" class="ml-1 px-2 py-0.5 bg-slate-800 text-white rounded font-medium hover:bg-slate-700">QR 갱신</button>
+            <p id="local-warning" class="text-[11px] text-amber-600 mt-1 hidden">
+              ⚠️ 로컬 파일(file://)로 열려 스마트폰 스캔이 불가합니다. 위 입력창에 웹 호스팅 주소를 입력하세요.
+            </p>
+          </div>
+        </div>
+
+        <!-- 스마트폰 접속용 QR코드 영역 -->
+        <div class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <div id="qrcode-box" class="p-1 bg-white border rounded shadow-sm"></div>
+          <div class="text-[11px] text-slate-600 leading-tight">
+            <span id="qr-target-class" class="font-bold text-indigo-600 text-xs">1반 접속 QR</span><br>
+            스마트폰 카메라로<br>스캔하세요
+          </div>
+        </div>
+      </div>
+
+      <!-- 누적 차트 -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <canvas id="distributionChart" height="180"></canvas>
+      </div>
+
+      <!-- 통계 카드 -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+          <span class="text-[11px] text-slate-500 font-bold">김영희(최고소득) 평균</span>
+          <p id="stat-younghee" class="text-base font-extrabold text-indigo-600 mt-0.5">0만 원</p>
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+          <span class="text-[11px] text-slate-500 font-bold">김철수(중소기업) 평균</span>
+          <p id="stat-cheolsoo" class="text-base font-extrabold text-indigo-600 mt-0.5">0만 원</p>
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+          <span class="text-[11px] text-slate-500 font-bold">김영수(맞벌이) 평균</span>
+          <p id="stat-youngsoo" class="text-base font-extrabold text-indigo-600 mt-0.5">0만 원</p>
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+          <span class="text-[11px] text-slate-500 font-bold">김남희(최소수혜자) 평균</span>
+          <p id="stat-namhee" class="text-base font-extrabold text-emerald-600 mt-0.5">0만 원</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentClass = urlParams.get('class') || '1';
+
+    const ROLES = [
+      { id: 1, name: "김영희 (장녀, 48세)", desc: "연 소득 1억 원 (의사) · 독신" },
+      { id: 2, name: "김철수 (장남, 45세)", desc: "연 소득 4,000만 원 · 자녀 2명 부양, 전세금 인상" },
+      { id: 3, name: "김영수 (차남, 40세)", desc: "연 소득 8,000만 원 (맞벌이) · 자녀 유학 준비" },
+      { id: 4, name: "김남희 (막내, 35세)", desc: "연 소득 2,000만 원 · 남편 실직 상태 (최소 수혜자)" }
+    ];
+
+    let currentRole = null;
+    let values = [1500, 1500, 1500, 1500];
+    let chartInstance = null;
+
+    function getClassStorageKey(cls) {
+      return `veil_experiment_class_${cls}`;
+    }
+
+    function loadClassData(cls) {
+      const saved = localStorage.getItem(getClassStorageKey(cls));
+      if (saved) return JSON.parse(saved);
+      return {
+        "1": [3000, 1000, 1500, 500],
+        "2": [2800, 1200, 1500, 500],
+        "3": [3200, 950, 1500, 350],
+        "4": [2900, 1100, 1600, 400],
+        "5": [3000, 1000, 1500, 500],
+        "6": [3100, 900, 1550, 450],
+        "7": [2950, 1050, 1600, 400],
+        "8": [3000, 1000, 1500, 500]
+      };
+    }
+
+    function saveClassData(cls, data) {
+      localStorage.setItem(getClassStorageKey(cls), JSON.stringify(data));
+    }
+
+    function switchView(view) {
+      if (view === 'student') {
+        document.getElementById('student-view').classList.remove('hidden');
+        document.getElementById('admin-view').classList.add('hidden');
+      } else {
+        document.getElementById('student-view').classList.add('hidden');
+        document.getElementById('admin-view').classList.remove('hidden');
+        document.getElementById('class-selector').value = currentClass;
+        initBaseUrl();
+        generateAdminQR();
+        renderAdminChart();
+      }
+    }
+
+    function startExperiment() {
+      const name = document.getElementById('stu-name').value.trim();
+      if (!name) {
+        alert("이름을 입력해 주세요.");
+        return;
+      }
+      currentRole = ROLES[Math.floor(Math.random() * ROLES.length)];
+      document.getElementById('step-login').classList.add('hidden');
+      document.getElementById('step-debate').classList.remove('hidden');
+      updateDisplay();
+    }
+
+    function adjustValue(personIdx, delta) {
+      const idx = personIdx - 1;
+      const nextVal = values[idx] + delta;
+      if (nextVal < 0 || nextVal > 6000) return;
+      values[idx] = nextVal;
+      updateDisplay();
+    }
+
+    function updateDisplay() {
+      for (let i = 0; i < 4; i++) {
+        document.getElementById(`val-${i+1}`).innerText = values[i].toLocaleString();
+      }
+
+      const sum = values.reduce((a, b) => a + b, 0);
+      const display = document.getElementById('sum-display');
+      const bar = document.getElementById('sum-bar');
+      const btn = document.getElementById('submit-plan-btn');
+
+      bar.style.width = Math.min(100, (sum / 6000) * 100) + '%';
+
+      if (sum === 6000) {
+        display.innerText = "합계: 6,000만 원 (완료)";
+        display.className = "text-emerald-600 font-bold";
+        bar.className = "h-full bg-emerald-500 transition-all duration-200";
+        btn.disabled = false;
+        btn.className = "w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-xl shadow text-sm transition cursor-pointer";
+      } else {
+        const diff = 6000 - sum;
+        display.innerText = diff > 0 ? `현재: ${sum.toLocaleString()}만 (${diff.toLocaleString()}만 부족)` : `현재: ${sum.toLocaleString()}만 (${Math.abs(diff).toLocaleString()}만 초과)`;
+        display.className = "text-red-500 font-bold";
+        bar.className = "h-full bg-red-500 transition-all duration-200";
+        btn.disabled = true;
+        btn.className = "w-full py-3 bg-slate-400 text-white font-bold rounded-xl shadow text-sm transition cursor-not-allowed";
+      }
+    }
+
+    function openRevealModal() {
+      const gId = document.getElementById('stu-group').value;
+      const allData = loadClassData(currentClass);
+      allData[gId] = [...values];
+      saveClassData(currentClass, allData);
+
+      const assignedVal = values[currentRole.id - 1];
+      document.getElementById('revealed-name').innerText = currentRole.name;
+      document.getElementById('revealed-desc').innerText = currentRole.desc;
+      document.getElementById('my-assigned-debt').innerText = assignedVal.toLocaleString();
+
+      document.getElementById('step-debate').classList.add('hidden');
+      document.getElementById('step-reflection').classList.remove('hidden');
+    }
+
+    function flipCard() {
+      document.getElementById('flip-inner').classList.toggle('card-flipped');
+    }
+
+    function changeClass(cls) {
+      currentClass = cls;
+      document.getElementById('header-class-badge').innerText = `${cls}반`;
+      document.getElementById('qr-target-class').innerText = `${cls}반 접속 QR`;
+      generateAdminQR();
+      renderAdminChart();
+    }
+
+    // QR코드 생성 및 로컬 주소 판별 로직
+    function initBaseUrl() {
+      const input = document.getElementById('base-url-input');
+      const warning = document.getElementById('local-warning');
+      const savedBase = localStorage.getItem('veil_custom_base_url');
+
+      if (savedBase) {
+        input.value = savedBase;
+      } else if (window.location.protocol.startsWith('http')) {
+        input.value = window.location.origin + window.location.pathname;
+      } else {
+        warning.classList.remove('hidden');
+      }
+    }
+
+    function updateBaseUrl() {
+      const inputVal = document.getElementById('base-url-input').value.trim();
+      if (inputVal) {
+        localStorage.setItem('veil_custom_base_url', inputVal);
+        document.getElementById('local-warning').classList.add('hidden');
+        generateAdminQR();
+      }
+    }
+
+    function generateAdminQR() {
+      const qrBox = document.getElementById('qrcode-box');
+      qrBox.innerHTML = '';
+      
+      let baseUrl = localStorage.getItem('veil_custom_base_url');
+      if (!baseUrl) {
+        baseUrl = window.location.protocol.startsWith('http') ? (window.location.origin + window.location.pathname) : window.location.href;
+      }
+
+      // 끝 슬래시 및 기존 파라미터 정리 후 ?class=N 부착
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      const cleanUrl = baseUrl.split('?')[0];
+      const targetUrl = `${cleanUrl}?class=${currentClass}`;
+
+      new QRCode(qrBox, {
+        text: targetUrl,
+        width: 68,
+        height: 68,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    function renderAdminChart() {
+      const data = loadClassData(currentClass);
+      const labels = ['1모둠', '2모둠', '3모둠', '4모둠', '5모둠', '6모둠', '7모둠', '8모둠', '전체 평균'];
+      
+      let y = [], c = [], s = [], n = [];
+      let sy = 0, sc = 0, ss = 0, sn = 0;
+
+      for (let i = 1; i <= 8; i++) {
+        const row = data[i];
+        y.push(row[0]); sy += row[0];
+        c.push(row[1]); sc += row[1];
+        s.push(row[2]); ss += row[2];
+        n.push(row[3]); sn += row[3];
+      }
+
+      const ay = Math.round(sy / 8);
+      const ac = Math.round(sc / 8);
+      const as = Math.round(ss / 8);
+      const an = Math.round(sn / 8);
+
+      y.push(ay); c.push(ac); s.push(as); n.push(an);
+
+      document.getElementById('stat-younghee').innerText = ay.toLocaleString() + "만 원";
+      document.getElementById('stat-cheolsoo').innerText = ac.toLocaleString() + "만 원";
+      document.getElementById('stat-youngsoo').innerText = as.toLocaleString() + "만 원";
+      document.getElementById('stat-namhee').innerText = an.toLocaleString() + "만 원";
+
+      const ctx = document.getElementById('distributionChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: '김영희(장녀)', data: y, backgroundColor: '#6366f1' },
+            { label: '김철수(장남)', data: c, backgroundColor: '#38bdf8' },
+            { label: '김영수(차남)', data: s, backgroundColor: '#fbbf24' },
+            { label: '김남희(막내)', data: n, backgroundColor: '#10b981' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, max: 6000 }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    document.getElementById('header-class-badge').innerText = `${currentClass}반`;
+  </script>
+</body>
+</html>
